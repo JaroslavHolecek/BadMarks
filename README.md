@@ -1,2 +1,2 @@
-# BadTeach
+# BadMarks
 Application for tracking students marks.
