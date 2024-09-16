@@ -11,14 +11,136 @@
     <div id="app">
         <header>
             <h1>Student Marking System</h1>
-            <nav>
-                <button id="administration_btn">Administration</button>
-                <button id="usage_btn">In class</button>
-                <button id="result_btn">Results</button>
-            </nav>
         </header>
+        <nav id="nav">
+            <button id="administration_btn">Administration</button>
+            <button id="usage_btn">In class</button>
+            <button id="result_btn">Results</button>
+        </nav>
+        <main id="main">
+            <section id="sec_admin" style="display: none;">
+                <section id="sec_save_load">
+                    <button id="save_btn" onclick="saveData(event)">Save</button>
+                    <form id="load_form">
+                        <input type="file" id="load_file" accept=".json">
+                        <button type="button" id="load_btn" onclick="loadData(event)">Load</button>
+                    </form>
+                </section>
+                
+                <section id="admin_group">
+                    <h2>Groups</h2>
+                    <form id="admin_group_form">
+                        <input type="text" id="group_name" placeholder="Group name">
+                        <button type="button" onclick="addGroup(event)">Add group</button>
+                    </form>
+                    <table id="admin_group_table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Delete</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- <tr>
+                                <td> Group name </td>
+                                <td> <button> Remove </button> </td>
+                            </tr> -->
+                        </tbody>
+                    </table>
+                </section>
+                
+                <section id="admin_student">
+                    <h2>Students</h2>
+                    <form id="student_form">
+                        <input type="text" id="student_name" placeholder="Student name">
+                        <select id="student_group" class="populate-on-click" data-student-id="">
+                            <!-- <option value="1">Group 1</option> -->
+                        </select>
+                        <button type="button" onclick="addStudent(event)">Add student</button>
+                    </form>
+                    <table id="admin_student_table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Groups</th>
+                                <th>Delete</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- <tr>
+                                <td> Student name </td>
+                                <td> <button> Remove </button> </td>
+                            </tr> -->
+                        </tbody>
+                    </table>
+                </section>
 
-        <main id="main">          
+                <section id="admin_mark">
+                    <h2>Marks</h2>
+                    <form id="mark_form">
+                        <input type="text" id="mark_name" placeholder="Mark name">
+                        <select id="mark_type" class="populate-on-click" data-mark-id="">
+                            <!-- <option value="1">Group 1</option> -->
+                             </select>
+                        <input type="number" id="mark_value" placeholder="Mark value">
+                        <input type="text" id="mark_description" placeholder="Mark description">
+                        <button type="button" onclick="addMark(event)">Add mark</button>
+                    </form>
+                    <table id="admin_mark_table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Value</th>
+                                <th>Description</th>
+                                <th>Delete</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- <tr>
+                                <td> Student name </td>
+                                <td> <button> Remove </button> </td>
+                            </tr> -->
+                        </tbody>
+                    </table>
+                </section>
+            </section>    
+            
+            
+            <section id="sec_usage" style="display: block;">
+                <section id="usage_group">
+                    <h2>Group</h2>
+                    <form id="usage_group_select">
+                        <select id="usage_group_select_list">
+                            <!-- <option value="1">Group 1</option> -->
+                        </select>
+                    </form>
+                </section>
+
+                <section id="usage_students">
+                    <h2>Students</h2>
+                    <table id="usage_students_table">
+                        <thead>
+                            <tr>
+                                <th>Negative</th>
+                                <th>Name</th>
+                                <th>Positive</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- <tr>
+                                <td> <button> - </button> </td>
+                                <td> Student name </td>
+                                <td> <button> + </button> </td>
+                            </tr> -->
+                        </tbody>
+                    </table>
+                </section>            
+            </section>
+                        
+            <section id="sec_result" style="display: none;">
+            
+            </section>
         </main>
     </div>
     <script src="src/js/app.js"></script>
