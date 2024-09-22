@@ -20,17 +20,19 @@
         <main id="main">
             <section id="sec_admin" style="display: none;">
                 <section id="sec_save_load">
-                    <button id="save_btn" onclick="saveData(event)">Save</button>
+                    <button id="save_btn" onclick="saveDataToFile(event)">Save to file</button>
                     <form id="load_form">
-                        <input type="file" id="load_file" accept=".json">
-                        <button type="button" id="load_btn" onclick="loadData(event)">Load</button>
+                        <label for="load_file">Load from file:</label>
+                        <input type="file" id="load_file" accept=".json" required>
+                        <button type="button" id="load_btn" onclick="loadDataFromFile(event)">Load</button>
                     </form>
                 </section>
                 
                 <section id="admin_group">
                     <h2>Groups</h2>
                     <form id="admin_group_form">
-                        <input type="text" id="group_name" placeholder="Group name">
+                        <label for="group_name">Name</label>
+                        <input type="text" id="group_name" placeholder="Group name" required>
                         <button type="button" onclick="addGroup(event)">Add group</button>
                     </form>
                     <table id="admin_group_table">
@@ -52,7 +54,9 @@
                 <section id="admin_student">
                     <h2>Students</h2>
                     <form id="student_form">
-                        <input type="text" id="student_name" placeholder="Student name">
+                        <label for="student_name">Name</label>
+                        <input type="text" id="student_name" placeholder="Student name" required>
+                        <label for="student_group">Group</label>
                         <select id="student_group" class="populate-on-click" data-student-id="">
                             <!-- <option value="1">Group 1</option> -->
                         </select>
@@ -78,11 +82,15 @@
                 <section id="admin_mark">
                     <h2>Marks</h2>
                     <form id="mark_form">
-                        <input type="text" id="mark_name" placeholder="Mark name">
-                        <select id="mark_type" class="populate-on-click" data-mark-id="">
+                        <label for="mark_name">Name</label>
+                        <input type="text" id="mark_name" placeholder="Mark name" required>
+                        <label for="mark_type">Type</label>
+                        <select id="mark_type" class="populate-on-click" data-mark-id="" required>
                             <!-- <option value="1">Group 1</option> -->
                              </select>
-                        <input type="number" id="mark_value" placeholder="Mark value">
+                        <label for="mark_value">Value</label>
+                        <input type="number" step="10" id="mark_value" placeholder="Mark value" required>
+                        <label for="mark_description">Description</label>
                         <input type="text" id="mark_description" placeholder="Mark description">
                         <button type="button" onclick="addMark(event)">Add mark</button>
                     </form>
@@ -104,6 +112,38 @@
                         </tbody>
                     </table>
                 </section>
+
+                <section id="admin_marksOfStudent"></section>
+                    <h2>Marks of students</h2>
+                    <form id="admin_markOfStudent_form">
+                        <label for="admin_mos_slct_group">Group</label>
+                        <select id="admin_mos_slct_group" class="populate-on-click" required>
+                            <!-- <option value="1">Group 1</option> -->
+                        </select>
+                        <label for="admin_mos_slct_student">Student</label>
+                        <select id="admin_mos_slct_student" class="populate-on-click" required>
+                            <!-- <option value="1">Group 1</option> --> 
+                        </select>
+                        <button type="button" onclick="updateMarkOfStudentTable(event)">Show marks</button>
+                    </form>
+
+                    <h3><span id="admin_mos_span_name"></span> in group <span id="admin_mos_span_group"></span></h3>
+
+                    <table id="admin_markOfStudent_table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Value</th>
+                                <th>Description</th>
+                                <th>Assignment time</th>
+                                <th>Delete</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                </section>
             </section>    
             
             
@@ -118,13 +158,15 @@
                 </section>
 
                 <section id="usage_students">
-                    <h2>Students</h2>
+                    <h2>Students of group <span id="usage_group_name"></span> </h2>
+                    <button id="usage_students_btn_select" onclick="usage_selectStudent(event)">Select student</button>
                     <table id="usage_students_table">
                         <thead>
                             <tr>
                                 <th>Negative</th>
                                 <th>Name</th>
                                 <th>Positive</th>
+                                <th>Missing</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -139,7 +181,46 @@
             </section>
                         
             <section id="sec_result" style="display: none;">
-            
+                <h2>Results</h2>
+                <section id="result_group">
+                    <h3>Group</h3>
+                    <form id="result_group_select">
+                        <label for="result_group_select_list">Group</label>
+                        <select id="result_group_select_list" class="populate-on-click" required>
+                            <!-- <option value="1">Group 1</option> -->
+                        </select>
+                        <label for="result_group_select_date_from">From</label>
+                        <input type="date" id="result_group_select_date_from" required>
+                        <label for="result_group_select_date_to">To</label>
+                        <input type="date" id="result_group_select_date_to" required>
+                        <label for="result_strategy_select_list">Strategy for grade computing</label>
+                        <select id="result_strategy_select_list" class="populate-on-click" required>
+                        </select>
+                        <button type="button" onclick="showResult(event)">Show/Update</button>
+                    </form>
+                </section>
+                
+                <section id="result_students">
+                    <h3>Students of group <span id="result_group_name"></span><br>
+                        Marks from <span id="result_date_from"></span> to <span id="result_date_to"></span> </h3>
+                    <table id="result_students_table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Relative</th>
+                                <th>Absolute</th>
+                                <th>Overall</th>
+                                <th>Grade</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- <tr>
+                                <td> Student name </td>
+                                <td> 5 </td>
+                                <td> 2020-01-01 12:00:00 </td>
+                            </tr> -->
+                        </tbody>
+                    </table>
             </section>
         </main>
     </div>

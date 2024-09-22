@@ -1,29 +1,121 @@
+/* Base styles */
 body {
-    font-family: Arial, sans-serif;
-  }
-  
-  #app {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 20px;
-  }
-  
-  .student-list {
-    width: 100%;
-    max-width: 600px;
-  }
-  
-  .student {
-    display: flex;
-    justify-content: space-between;
-    padding: 10px;
-    border: 1px solid #ccc;
-    margin-bottom: 10px;
-    background-color: #f9f9f9;
-  }
-  
-  .student.selected {
-    background-color: #e0e0e0;
+  font-family: 'Roboto', sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+h1, h2, h3 {
+  text-align: center;
+  margin: 1rem 0;
+}
+
+header, nav, main {
+  padding: 1rem;
+}
+
+header {
+  background-color: #4CAF50;
+  color: white;
+  border-radius: 0.5rem;
+}
+
+nav {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+button {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+button:hover {
+  background-color: #45a049;
+}
+
+button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+input[type="text"], input[type="date"], select {
+  width: 100%;
+  padding: 0.5rem;
+  margin: 0.5rem 0;
+  border: 1px solid #ccc;
+  border-radius: 0.5rem;
+  box-sizing: border-box;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+th, td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+th {
+  background-color: #4CAF50;
+  color: white;
+}
+
+tr:nth-child(even) {
+  background-color: #f2f2f2;
+}
+
+tr:hover {
+  background-color: #ddd;
+}
+
+.selected-student {
+  border: 2px solid #ff5722; /* Emphasizing border color */
+  border-collapse: separate; /* Ensure border-radius works */
+}
+
+.selected-student td:first-child {
+  border-top-left-radius: 0.5rem;
+  border-bottom-left-radius: 0.5rem;
+}
+
+.selected-student td:last-child {
+  border-top-right-radius: 0.5rem;
+  border-bottom-right-radius: 0.5rem;
+}
+
+.student-missing {
+  opacity: 0.5; /* Adjust the value as needed (0.0 to 1.0) */
+}
+
+.student.selected {
+  background-color: #e0e0e0;
+}
+
+.highlight-row {
+  background-color: #ffff99 !important; /* Light yellow background */
+}
+
+@media (min-width: 600px) {
+  nav {
+      justify-content: flex-start;
   }
 
+  main {
+      max-width: 800px;
+      margin: 0 auto;
+  }
+}

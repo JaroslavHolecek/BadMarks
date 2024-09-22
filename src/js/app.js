@@ -2,6 +2,40 @@
 /* import { getStudents } from '../db/indexeddb'; */
 // import { renderStudentList } from './ui';
 
+class GradeStrategy {
+  constructor(name, thresholds, grades) {
+    this.name = name;
+    this.thresholds = thresholds;
+    this.grades = grades;
+  }
+
+  static fromObject(obj) {
+    return new GradeStrategy(obj.thresholds, obj.grades);
+  }
+
+  static fromJSON(json) {
+    return GradeStrategy.fromObject(JSON.parse(json));
+  }
+
+  toJSON() {
+    return {
+      name: this.name,
+      thresholds: this.thresholds,
+      grades: this.grades
+    };
+  }
+
+  getGrade(score) {
+    for (let i = 0; i < this.thresholds.length; i++) {
+      if (score >= this.thresholds[i]) {
+        return this.grades[i];
+      }
+    }
+    return this.grades[this.grades.length - 1];
+  }
+}
+
+
 class MarkType {
   constructor(id, name, description) {
     this.id = id;
@@ -155,8 +189,13 @@ class StudentInGroup {
     };
   }
 
+  /**
+   * 
+   * @param {Mark} mark to add 
+   * @returns index of the added mark
+   */
   addMark(mark) {
-    this.marks_assigned.push({ mark: mark, datetime: Date.now() });
+    return this.marks_assigned.push(new MarkAssignment(mark, Date.now())) - 1;
   }
 
   removeMark(mark) {
@@ -167,37 +206,36 @@ class StudentInGroup {
   removeMarkByIndex(markIndex) {
     this.marks_assigned.splice(markIndex, 1);
   }
-
 }
 
+var g_gradesStrategies = [
+  new GradeStrategy("JH", [90, 80, 70, 60, 45, 30, 15, 0], ['1', '1-', '2', '2-', '3', '3-', '4', '4-', '5']),
+  new GradeStrategy("NoStress", [], [':-)'])
+];
+
 var g_mark_types = [
-  new MarkType(1, 'relative', 'Used for counting grade in statistical manner'),
-  new MarkType(2, 'absolute', 'Used for change the grade for an absolute value')
+  new MarkType(1, 'relative', 'Pro výpočet průměrné hodnoty'),
+  new MarkType(2, 'absolute', 'Pro absolutní změnu hodnoty')
 ];
 var g_marks = [
-  new Mark(1, '+', g_mark_types[0], 1, 'Client web'),
-  new Mark(2, '-', g_mark_types[0], -1, 'Do nothing'),
-  new Mark(3, 'P', g_mark_types[1], 1, 'Essey'),
-  new Mark(4, 'M', g_mark_types[1], -1, 'Phone during class')
+  new Mark(1, 'Odpověď', g_mark_types[0], 50, 'Odpověď na otázku'),
+  new Mark(2, 'Otázka/Diskuze', g_mark_types[0], 100, 'Otázka či diskuze k tématu'),
+  new Mark(3, 'Neaktivita', g_mark_types[0], -100, 'Neaktivita'),
+  new Mark(4, 'Prezentace', g_mark_types[1], 10, 'Prezentace navíc'),
+  new Mark(5, 'Telefon', g_mark_types[1], -10, 'Používá ve třídě v hodně telefon k nesouvisející činnosti')
 ];
 var g_students = [
-  new Student(1, 'Alice'),
-  new Student(2, 'Bob'),
-  new Student(3, 'Charlie'),
-  new Student(4, 'David'),
-  new Student(5, 'Eve')
+  new Student(1, 'Adam'),
+  new Student(2, 'Bára'),
+  new Student(3, 'Cyril')
 ];
 var g_groups = [
-  new Group(1, 'Group 1'),
-  new Group(2, 'Group 2'),
-  new Group(3, 'Group 3')
+  new Group(1, 'Ukázková')
 ];
 var g_students_groups = [
   new StudentInGroup(g_students[0], g_groups[0], [new MarkAssignment(g_marks[0], Date.now()), new MarkAssignment(g_marks[1], Date.now())]),
-  new StudentInGroup(g_students[1], g_groups[0], [new MarkAssignment(g_marks[0], Date.now()), new MarkAssignment(g_marks[1], Date.now())]),
-  new StudentInGroup(g_students[2], g_groups[1], [new MarkAssignment(g_marks[2], Date.now())]),
-  new StudentInGroup(g_students[3], g_groups[1], [new MarkAssignment(g_marks[3], Date.now())]),
-  new StudentInGroup(g_students[4], g_groups[2], [new MarkAssignment(g_marks[2], Date.now()), new MarkAssignment(g_marks[3], Date.now())])
+  new StudentInGroup(g_students[1], g_groups[0], [new MarkAssignment(g_marks[1], Date.now()), new MarkAssignment(g_marks[2], Date.now())]),
+  new StudentInGroup(g_students[2], g_groups[0], [new MarkAssignment(g_marks[2], Date.now())]),
 ];
 
 var g_selectedGroupId = null;
@@ -310,6 +348,8 @@ function updateSection_Usage_StudentsList(){
   }
 
   const selectedGroupName = g_groups.find(group => group.id == g_selectedGroupId).name;
+  document.getElementById('usage_group_name').textContent = selectedGroupName;
+
   const selectedGroupStudents = g_students_groups.filter(student_group => student_group.group.id == g_selectedGroupId).map(student_group => student_group.student);
 
   const tbody_fragment = document.createDocumentFragment();
@@ -328,6 +368,9 @@ function updateSection_Usage_StudentsList(){
     
     const td_name = document.createElement('td');
     td_name.textContent = student.name;
+    const span = document.createElement('span');
+    span.classList.add('revert-button-container');
+    td_name.appendChild(span);    
     tr.appendChild(td_name);
 
     const td_slct_positive = document.createElement('td');
@@ -339,10 +382,34 @@ function updateSection_Usage_StudentsList(){
     td_slct_positive.appendChild(slct_positive);
     tr.appendChild(td_slct_positive);
 
+    const td_missing = document.createElement('td');
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    td_missing.appendChild(checkbox);
+    tr.appendChild(td_missing);
+
     tbody_fragment.appendChild(tr);
   });
   tbody.appendChild(tbody_fragment);
 }
+
+// Function to handle checkbox change
+function onCheckboxChange(event) {
+  const checkbox = event.target;
+  const studentRow = checkbox.closest('tr');
+  if (checkbox.checked) {
+      studentRow.classList.add('student-missing');
+  } else {
+      studentRow.classList.remove('student-missing');
+  }
+}
+
+// Add event listener for checkbox change
+document.querySelector('#usage_students').addEventListener('change', function(event) {
+  if (event.target.matches('input[type="checkbox"]')) {
+      onCheckboxChange(event);
+  }
+});
 
 function populateMarkOptions(event, marks){
   const select = event.target;
@@ -351,11 +418,7 @@ function populateMarkOptions(event, marks){
 
 
 document.querySelector('#usage_students').addEventListener('click', function(event) {
-  if (event.target.matches('button.btn_negative_mark_general')) {
-    console.log('Negative mark for student');
-  }else if (event.target.matches('button.btn_positive_mark_general')) {
-    console.log('Positive mark for student');
-  }else if (event.target.matches('select.populate-on-click')) {
+  if (event.target.matches('select.populate-on-click')) {
     if(event.target.classList.contains('slct_negative_mark_general')){
       populateMarkOptions(event, g_negative_marks);
     }else if(event.target.classList.contains('slct_positive_mark_general')){
@@ -374,6 +437,21 @@ document.getElementById('usage_students_table').addEventListener('change', funct
   }
 });
 
+// Add event listeners for focus and blur events on select elements
+document.getElementById('usage_students_table').addEventListener('focusin', function(event) {
+  if (event.target.matches('select.populate-on-click')) {
+      const studentRow = event.target.closest('tr');
+      studentRow.classList.add('highlight-row');
+  }
+});
+
+document.getElementById('usage_students_table').addEventListener('focusout', function(event) {
+  if (event.target.matches('select.populate-on-click')) {
+      const studentRow = event.target.closest('tr');
+      studentRow.classList.remove('highlight-row');
+  }
+});
+
 function addMarkToStudent(event) {
   const selectElement = event.target;
   const studentId = selectElement.getAttribute('data-student-id');
@@ -381,21 +459,73 @@ function addMarkToStudent(event) {
 
   if (markId) {
       const mark = g_marks.find(mark => mark.id == markId);
-
       if (mark) {
-          // Add the mark to the student
-          g_students_groups.find(student_group => student_group.student.id == studentId && student_group.group.id == g_selectedGroupId).addMark(mark);
+        // Add the mark to the student
+        const student_group = g_students_groups.find(student_group => student_group.student.id == studentId && student_group.group.id == g_selectedGroupId);
+        const index = student_group.addMark(mark);
+        
+        const studentRow = event.target.closest('tr');
+        showRevertButton(studentRow, student_group, index);
       }
   }
 }
 
+// Function to show the "Revert" button
+function showRevertButton(studentRow, student_group, markIndex) {
+  const revertButtonContainer = studentRow.querySelector('.revert-button-container');
+  revertButtonContainer.innerHTML = ''; // Clear any existing button
+  const mark_name = student_group.marks_assigned[markIndex].mark.name;
 
+  studentRow.classList.add('highlight-row'); // Highlight the row when a mark is added
 
+  const revertButton = document.createElement('button');
+  let countdown = 5; // Countdown time in seconds
+  revertButton.className = 'revert-button';
+  revertButton.onclick = function() {
+      student_group.removeMarkByIndex(markIndex);
+      clearInterval(countdownInterval); // Stop the countdown when the button is clicked
+      revertButtonContainer.innerHTML = ''; // Remove the button immediately
+      studentRow.classList.remove('highlight-row'); // Remove the highlight from the row
+  }
+  
 
-    
+  revertButton.textContent = `Revert ${mark_name}: ${countdown}`;
+  // Update the button text every second to show the countdown
+  const countdownInterval = setInterval(() => {
+    countdown -= 1;
+    if (countdown > 0) {
+        revertButton.textContent = `Revert ${mark_name}: ${countdown}`;
+    } else {
+        clearInterval(countdownInterval); // Stop the countdown when it reaches zero
+        revertButtonContainer.innerHTML = ''; // Remove the button
+        studentRow.classList.remove('highlight-row'); // Remove the highlight from the row
+    }
+  }, 1000);
 
+  revertButtonContainer.appendChild(revertButton);
+}
 
+function usage_selectStudent(event){
+  const table = document.getElementById('usage_students_table');
+  const rows = Array.from(table.querySelectorAll('tbody tr'));
 
+  // Filter out rows with the 'student-missing' class
+  const availableRows = rows.filter(row => !row.classList.contains('student-missing'));
+  if (availableRows.length === 0) return;
+
+  // Randomly select a student row from the available rows
+  const randomIndex = Math.floor(Math.random() * availableRows.length);
+  const selectedRow = availableRows[randomIndex];
+
+  // Highlight the selected row with a border
+  rows.forEach(row => row.classList.remove('selected-student'));
+  setTimeout(() => {
+    selectedRow.classList.add('selected-student');
+  }, 1000);
+
+  // Scroll the screen to the selected row
+  selectedRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
 
 function updateSection_Admin_GroupsTable(){
   const table = document.getElementById('admin_group_table');
@@ -497,8 +627,12 @@ function addGroup(event){
 
   const form = event.target.form;
   const groupName = form.elements['group_name'].value;
+  if(!groupName){
+    alert('Please enter a group name');
+    return;
+  }
   g_groups.push(new Group(findMaxIDInObjectList(g_groups) + 1, groupName, []));
-  updateSection_Admin_GroupsTable();
+  updateSection_Admin_GroupsTable();  
 }
 
 function updateSection_Admin_StudentGroupOption(){
@@ -548,12 +682,23 @@ function addStudent(event){
   const form = event.target.form;
   const studentName = form.elements['student_name'].value;
   const studentGroupId = form.elements['student_group'].value;
-  const studentGroup = g_groups.find(group => group.id == studentGroupId);
+
+  if(!studentName){
+    alert('Please enter a student name');
+    return;
+  }
+  
   let student = new Student(findMaxIDInObjectList(g_students) + 1, studentName);
   g_students.push(student);
-  g_students_groups.push(new StudentInGroup(student, studentGroup));
+
+  if(studentGroupId){
+    const studentGroup = g_groups.find(group => group.id == studentGroupId);
+    g_students_groups.push(new StudentInGroup(student, studentGroup));
+  }  
   updateSection_Admin_StudentGroupOption();
   updateSection_Admin_StudentsTable();
+  form.elements['student_group'].value = studentGroupId;
+
 }
 
 function deleteStudent(event){
@@ -658,16 +803,25 @@ function addMark(event){
 
   const form = event.target.form;
   const markName = form.elements['mark_name'].value;
-  const markType = g_mark_types.find(mark_type => mark_type.id == form.elements['mark_type'].value);
+  const markTypeId = form.elements['mark_type'].value;
   const markValue = form.elements['mark_value'].value;
-  const markDescription = form.elements['mark_description'].value;
+
+  if(!markName || !markTypeId || !markValue){
+    alert('Please enter a mark name, select a mark type and enter a mark value');
+    return;
+  }
+
+  const markType = g_mark_types.find(mark_type => mark_type.id == markTypeId);
+  const markDescription = form.elements['mark_description'].value || '--Undescribed--';
   g_marks.push(new Mark(findMaxIDInObjectList(g_marks) + 1, markName, markType, markValue, markDescription));
   updateSection_Admin_Marks();
 }
 
 function populateMarkType(event) {
   const select = event.target;
+  const selectedMarkId = select.value;
   writeObjectListToSelect(select, g_mark_types, 'name', 'id');
+  select.value = selectedMarkId || g_mark_types[0].id;
 }
 
 
@@ -682,17 +836,123 @@ document.querySelector('#admin_mark').addEventListener('click', function(event) 
   }
 });
 
+document.querySelector('#admin_markOfStudent_form').addEventListener('click', function(event) {
+  if (event.target.matches('select#admin_mos_slct_group')) {
+      populateAdmin_mos_Group(event);
+  } else if (event.target.matches('select#admin_mos_slct_student')) {
+      populateAdmin_mos_Student(event);
+  }
+});
 
-function saveData() {
+document.querySelector('#admin_markOfStudent_form').addEventListener('change', function(event) {
+  if (event.target.matches('select#admin_mos_slct_group')) {
+      onAdmin_mos_GroupChange(event);
+  } else if (event.target.matches('select#admin_mos_slct_student')) {
+      onAdmin_mos_StudentChange(event);
+  }
+});
+
+function populateAdmin_mos_Group(event){
+  const selectGroup = event.target;
+  const groupId = selectGroup.value;
+  const selectStudent = document.getElementById('admin_mos_slct_student');
+  const studentId = selectStudent.value;
+  
+  if(!studentId){
+    writeObjectListToSelect(selectGroup, g_groups, 'name', 'id', addNoneOption={add:true, text:"--Reset--", value:""});
+    return;
+  }
+
+  const groupsOfStudent = g_students_groups.filter(student_group => student_group.student.id == studentId).map(student_group => student_group.group);
+  writeObjectListToSelect(selectGroup, groupsOfStudent, 'name', 'id', addNoneOption={add:true, text:"--Reset--", value:""});
+  selectGroup.value = groupId;
+
+}
+
+function populateAdmin_mos_Student(event){
+  const selectStudent = event.target;
+  const studentId = selectStudent.value;
+  const selectGroup = document.getElementById('admin_mos_slct_group');
+  const groupId = selectGroup.value;
+
+  if(!groupId){
+    writeObjectListToSelect(selectStudent, g_students, 'name', 'id', addNoneOption={add:true, text:"--Reset--", value:""});
+    return;
+  }
+
+  const studentsInGroup = g_students_groups.filter(student_group => student_group.group.id == groupId).map(student_group => student_group.student);
+  writeObjectListToSelect(selectStudent, studentsInGroup, 'name', 'id', addNoneOption={add:true, text:"--Reset--", value:""});
+  selectStudent.value = studentId;
+}
+
+function onAdmin_mos_GroupChange(event){
+  const selectGroup = event.target;
+  const groupId = selectGroup.value;
+ 
+  if(!groupId){
+    const selectStudent = document.getElementById('admin_mos_slct_student');
+    writeObjectListToSelect(selectGroup, g_groups, 'name', 'id', addNoneOption={add:true, text:"--Reset--", value:""});
+    writeObjectListToSelect(selectStudent, g_students, 'name', 'id', addNoneOption={add:true, text:"--Reset--", value:""});
+    return;
+  }
+
+  const studentsInGroup = g_students_groups.filter(student_group => student_group.group.id == groupId).map(student_group => student_group.student);
+  if(studentsInGroup.length === 1){
+    const selectStudent = document.getElementById('admin_mos_slct_student');
+    writeObjectListToSelect(selectStudent, studentsInGroup, 'name', 'id', addNoneOption={add:true, text:"--Reset--", value:""});
+    selectStudent.value = studentsInGroup[0].id;
+  }  
+}
+
+function onAdmin_mos_StudentChange(event){
+  const selectStudent = event.target;
+  const studentId = selectStudent.value;
+
+  if(!studentId){
+    const selectGroup = document.getElementById('admin_mos_slct_group');
+    writeObjectListToSelect(selectStudent, g_students, 'name', 'id', addNoneOption={add:true, text:"--Reset--", value:""});
+    writeObjectListToSelect(selectGroup, g_groups, 'name', 'id', addNoneOption={add:true, text:"--Reset--", value:""});
+    return;
+  }
+
+  const groupsOfStudent = g_students_groups.filter(student_group => student_group.student.id == studentId).map(student_group => student_group.group);
+  if(groupsOfStudent.length === 1){
+    const selectGroup = document.getElementById('admin_mos_slct_group');
+    writeObjectListToSelect(selectGroup, groupsOfStudent, 'name', 'id', addNoneOption={add:true, text:"--Reset--", value:""});
+    selectGroup.value = groupsOfStudent[0].id;
+  }
+}
+
+function createJSON(){
   const data = {
-      marks: g_marks,
-      markTypes: g_mark_types,
-      students: g_students,
-      groups: g_groups,
-      studentsGroups: g_students_groups
+    gradesStrategies: g_gradesStrategies,
+    marks: g_marks,
+    markTypes: g_mark_types,
+    students: g_students,
+    groups: g_groups,
+    studentsGroups: g_students_groups
   };
 
-  const jsonString = JSON.stringify(data);
+  return JSON.stringify(data);
+};
+
+function loadFromJSON(jsonString){
+  const data = JSON.parse(jsonString);
+
+  g_gradesStrategies = data.gradesStrategies.map(gradeStrategy => GradeStrategy.fromObject(gradeStrategy));
+  g_mark_types = data.markTypes.map(markType => MarkType.fromObject(markType));
+  g_marks = data.marks.map(mark => Mark.fromObject(mark, g_mark_types));
+  g_students = data.students.map(student => Student.fromObject(student));
+  g_groups = data.groups.map(group => Group.fromObject(group));
+  g_students_groups = data.studentsGroups.map(studentGroup => StudentInGroup.fromObject(studentGroup, g_students, g_groups, g_marks));
+
+  updateSection_Admin();
+  updateSection_Usage();
+  updateSection_Result();
+}
+
+function saveDataToFile() {
+  const jsonString = createJSON();
   const blob = new Blob([jsonString], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -701,7 +961,7 @@ function saveData() {
   a.click();
 }
 
-function loadData(event) {
+function loadDataFromFile(event) {
   const file = document.getElementById("load_file").files[0];
   if(!file){
     return;
@@ -709,389 +969,214 @@ function loadData(event) {
   const reader = new FileReader();
   reader.onload = function() {
       const jsonString = reader.result;
-      const data = JSON.parse(jsonString);
-
-      g_mark_types = data.markTypes.map(markType => MarkType.fromObject(markType));
-      g_marks = data.marks.map(mark => Mark.fromObject(mark, g_mark_types));
-      g_students = data.students.map(student => Student.fromObject(student));
-      g_groups = data.groups.map(group => Group.fromObject(group));
-      g_students_groups = data.studentsGroups.map(studentGroup => StudentInGroup.fromObject(studentGroup, g_students, g_groups, g_marks));
-
-      updateSection_Admin();
-      updateSection_Usage();
-      updateSection_Result();
+      loadFromJSON(jsonString);
   };
   reader.readAsText(file);  
 }
 
-
-
-      
-
-
-
-
-
-
-// function renderAdminDiv(){
-//   const adminDiv = document.createElement('div');
-//   adminDiv.setAttribute('id', 'administration_div');
-//   adminDiv.innerHTML = '<h2>Administration</h2>';
-
-//   const adminMarkDiv = renderAdminMarkMainDiv();
-//   const adminGroupDiv = renderAdminGroupMainDiv();
-//   const adminStudentDiv = renderAdminStudentMainDiv();
-
-//   adminMarkDiv.style.display = 'none';
-//   adminGroupDiv.style.display = 'block';
-//   adminStudentDiv.style.display = 'none';
-
-//   adminDiv.appendChild(adminMarkDiv);
-//   adminDiv.appendChild(adminGroupDiv);
-//   adminDiv.appendChild(adminStudentDiv);
-
-//   return adminDiv;
-// }
-
-// function renderUsageDiv(){
-//   const usageDiv = document.createElement('div');
-//   usageDiv.setAttribute('id', 'usage_div');
-//   usageDiv.innerHTML = '<h2>In class</h2>';
-
-//   const selectedGroupDiv = document.createElement('div');
-//   selectedGroupDiv.setAttribute('id', 'selected_group_div');
-  
-//   const groupSelectionDiv = renderUsageGroupSelectionDiv(selectedGroupDiv);
-
-//   usageDiv.appendChild(groupSelectionDiv);
-//   usageDiv.appendChild(selectedGroupDiv);
-
-//   if (groups.length === 1) {
-//     fillUsageSelectedGroupDiv(selectedGroupDiv, g_groups[0]);
-//   }
-
-//   return usageDiv;
-// }
-
-// function renderResultDiv(){
-//   const resultDiv = document.createElement('div');
-//   resultDiv.setAttribute('id', 'result_div');
-//   resultDiv.innerHTML = '<h2>Results</h2>';
-
-//   return resultDiv;
-// }
-
-
-// function renderAdminMarkMainDiv(){
-//   const adminMarkDiv = document.createElement('div');
-//   adminMarkDiv.setAttribute('id', 'admin_mark_main_div');
-//   adminMarkDiv.innerHTML = '<h3>Mark administration</h3>';
-
-//   // const addMarkButton = document.createElement('button');
-//   // addMarkButton.textContent = 'Add mark';
-//   // addMarkButton.setAttribute('id', 'add_mark_button');
-//   // addMarkButton.addEventListener('click', addNewMark);
-//   // adminMarkDiv.appendChild(addMarkButton);
-
-//   adminMarkDiv.appendChild(renderAdminMarkListDiv(g_marks));
-
-//   return adminMarkDiv;
-// }
-
-// function renderAdminMarkListDiv(g_marks){
-//   const adminMarkListDiv = document.createElement('div');
-//   adminMarkListDiv.setAttribute('id', 'admin_mark_list_div');
-//   adminMarkListDiv.innerHTML = '<h3>g_marks</h3>';
-
-//   g_marks.forEach(mark => {
-//     adminMarkListDiv.appendChild(renderAdminMarkDiv(mark));
-//   });
-
-//   return adminMarkListDiv;
-// }
-
-// function renderAdminMarkDiv(mark){
-//   const markDiv = document.createElement('div');
-//   markDiv.setAttribute('id', 'admin_mark_div');
-//   markDiv.innerHTML = `
-//     <span>${mark.name}</span><span>${mark.description}</span><span>${mark.type.name}</span><span>${mark.value}</span>`;
-//   return markDiv;
-// }
-
-// function renderAdminGroupMainDiv(){
-//   const adminGroupDiv = document.createElement('div');
-//   adminGroupDiv.setAttribute('id', 'admin_group_main_div');
-//   adminGroupDiv.innerHTML = '<h3>Group administration</h3>';
-
-//   // const addGroupButton = document.createElement('button');
-//   // addGroupButton.textContent = 'Add group';
-//   // addGroupButton.setAttribute('id', 'add_group_button');
-//   // addGroupButton.addEventListener('click', addNewGroup);
-//   // adminGroupDiv.appendChild(addGroupButton);
-
-//   adminGroupDiv.appendChild(renderAdminGroupListDiv(groups));
-
-//   return adminGroupDiv;
-// }
-
-// function renderAdminGroupListDiv(groups){
-//   const adminGroupListDiv = document.createElement('div');
-//   adminGroupListDiv.setAttribute('id', 'admin_group_list_div');
-//   adminGroupListDiv.innerHTML = '<h3>Groups</h3>';
-
-//   g_groups.forEach(group => {
-//     adminGroupListDiv.appendChild(renderAdminGroupDiv(group));
-//   });
-
-//   return adminGroupListDiv;
-// }
-
-// function renderAdminGroupDiv(group){
-//   const groupDiv = document.createElement('div');
-//   groupDiv.setAttribute('id', 'admin_group_div');
-//   groupDiv.innerHTML = `
-//     <span>${group.name}</span>`;
-  
-//   return groupDiv;
-// }
-
-// function renderAdminStudentMainDiv(){
-//   const adminStudentDiv = document.createElement('div');
-//   adminStudentDiv.setAttribute('id', 'admin_student_main_div');
-//   adminStudentDiv.innerHTML = '<h3>Student administration</h3>';
-
-//   // const addStudentButton = document.createElement('button');
-//   // addStudentButton.textContent = 'Add student';
-//   // addStudentButton.setAttribute('id', 'add_student_button');
-//   // addStudentButton.addEventListener('click', addNewStudent);
-//   // adminStudentDiv.appendChild(addStudentButton);
-
-//   adminStudentDiv.appendChild(renderAdminStudentListDiv(g_students));
-
-//   return adminStudentDiv;
-// }
-
-// function renderAdminStudentListDiv(g_students){
-//   const adminStudentListDiv = document.createElement('div');
-//   adminStudentListDiv.setAttribute('id', 'admin_student_list_div');
-//   adminStudentListDiv.innerHTML = '<h3>Students</h3>';
-
-//   g_students.forEach(student => {
-//     adminStudentListDiv.appendChild(renderAdminStudentDiv(student));
-//   });
-
-//   return adminStudentListDiv;
-// }
-
-// function renderAdminStudentDiv(student){
-//   const studentDiv = document.createElement('div');
-//   studentDiv.setAttribute('id', 'admin_student_div');
-//   studentDiv.innerHTML = `
-//     <span>${student.name}</span>
-//   `;
-
-//   return studentDiv;
-// }
-  
-
-// function renderUsageGroupSelectionDiv(selectedGroupDiv){
-//   const groupSelectionDiv = document.createElement('div');
-//   groupSelectionDiv.setAttribute('id', 'group_selection_div');
-//   groupSelectionDiv.innerHTML = '<h3>Group selection</h3>';
-  
-//   const selectGroupDiv = document.createElement('div');
-//   selectGroupDiv.setAttribute('id', 'select_group_div');
-//   groupSelectionDiv.appendChild(selectGroupDiv);
-
-//   const selectGroupForm = document.createElement('form');
-//   selectGroupForm.setAttribute('id', 'select_group_form');
-//   selectGroupDiv.appendChild(selectGroupForm);
-
-//   const selectGroupLabel = document.createElement('label');
-//   selectGroupLabel.setAttribute('for', 'group');
-//   selectGroupLabel.textContent = 'Select a group:';
-//   selectGroupForm.appendChild(selectGroupLabel);
-
-//   const selectGroupSelect = document.createElement('select');
-//   selectGroupSelect.setAttribute('name', 'group');
-//   selectGroupSelect.setAttribute('id', 'group_select');
-
-//   addObjectListToSelect(selectGroupSelect, g_groups, 'name', 'id');
-//   selectGroupSelect.selectedIndex = -1;
-//   selectGroupForm.appendChild(selectGroupSelect);
-
-//   selectGroupSelect.addEventListener('change', function() {
-//     const selectedGroupId = selectGroupSelect.value;
-//     fillUsageSelectedGroupDiv(selectedGroupDiv, g_groups.find(group => group.id == selectedGroupId));
-//   });
-
-
-//   // const addGroupDiv = document.createElement('div');
-//   // addGroupDiv.setAttribute('id', 'add_group_div');
-//   // groupSelectionDiv.appendChild(addGroupDiv);
-
-//   // const newGroupButton = document.createElement('button');
-//   // newGroupButton.textContent = 'New group';
-//   // newGroupButton.setAttribute('id', 'add_group_button');
-//   // newGroupButton.addEventListener('click', addNewGroup);
-//   // addGroupDiv.appendChild(newGroupButton);
-  
-
-//   // const addGroupForm = document.createElement('form');
-//   // addGroupForm.setAttribute('id', 'add_group_form');
-//   // addGroupForm.innerHTML = `
-//   //   <input type="text" name="group_name" id="group_name" placeholder="Enter group name">
-//   // `;
-//   // addGroupForm.style.display = 'none';
-//   // addGroupDiv.appendChild(addGroupForm);
-
-//   // const saveGroupButton = document.createElement('button');
-//   // saveGroupButton.textContent = 'Save';
-//   // saveGroupButton.setAttribute('id', 'save_group_button');
-//   // saveGroupButton.addEventListener('click', saveNewGroup);
-//   // addGroupForm.appendChild(saveGroupButton);
-
-//   // const cancelGroupButton = document.createElement('button');
-//   // cancelGroupButton.textContent = 'Cancel';
-//   // cancelGroupButton.setAttribute('id', 'cancel_group_button');
-//   // cancelGroupButton.addEventListener('click', cancelNewGroup);
-//   // addGroupForm.appendChild(cancelGroupButton);
-
-//   return groupSelectionDiv;
-// }
-
-// function fillUsageSelectedGroupDiv(selectedGroupDiv, group) {
-//   if(!group) {
-//     selectedGroupDiv.innerHTML = '<h3>No group selected</h3>';
-//     return selectedGroupDiv;
-//   }
-
-//   selectedGroupDiv.innerHTML = `<h3>Group ${group.name}</h3>`;
-//   const groupStudentsListDiv = renderUsageStudentsListDiv(group.g_students_marks);
-//   selectedGroupDiv.appendChild(groupStudentsListDiv);  
-
-//   return selectedGroupDiv;
-// }
-
-// function renderUsageStudentsListDiv(g_students_marks){
-//   const studentsListDiv = document.createElement('div');
-//   studentsListDiv.setAttribute('id', 'students_list_div');
-
-//   g_students_marks.forEach(student_g_marks => {
-//     studentsListDiv.appendChild(renderStudentDiv(student_marks));
-//   });
-
-//   return studentsListDiv;
-// }
-
-// function renderStudentDiv(student_marks){
-//   const studentDiv = document.createElement('div');
-//   studentDiv.classList.add('student_div');
-
-//   const negativeMarkButton = document.createElement('button');
-//   negativeMarkButton.textContent = '-';
-//   negativeMarkButton.addEventListener('click', () => {
-//     console.log(`Negative mark for student ${student_marks.student.name}`);
-//   });
-//   studentDiv.appendChild(negativeMarkButton);
-
-//   const studentNameSpan = document.createElement('span');
-//   studentNameSpan.textContent = student_marks.student.name;
-//   studentDiv.appendChild(studentNameSpan);
-
-//   const positiveMarkButton = document.createElement('button');
-//   positiveMarkButton.textContent = '+';
-//   positiveMarkButton.addEventListener('click', () => {
-//     console.log(`Positive mark for student ${student_marks.student.name}`);
-//   });
-//   studentDiv.appendChild(positiveMarkButton);
-
-//   return studentDiv;
-// }
-
-
-
-
-
-// function toggleAddGroupForm(){
-//   const addGroupForm = document.getElementById('add_group_form');
-//   addGroupForm.style.display = addGroupForm.style.display === 'none' ? 'block' : 'none';
-//   const addGroupButton = document.getElementById('add_group_button');
-//   addGroupButton.style.display = addGroupButton.style.display === 'none' ? 'block' : 'none';
-// }
-
-// function addNewGroup(event){
-//   event.preventDefault();
-//   toggleAddGroupForm();
-// }
-
-// function saveNewGroup(event){
-//   event.preventDefault();
-//   const groupName = document.getElementById('group_name').value;
-//   g_groups.push({id: g_groups.length + 1, name: groupName, g_students_marks: []});
-//   console.log(groupName);
-//   toggleAddGroupForm();
-// }
-
-// function cancelNewGroup(event){
-//   event.preventDefault();
-//   toggleAddGroupForm();
-// }
-
-// function clearMain(){
-//   const main = document.getElementById('main');
-//   main.innerHTML = '';
-//   return main;
-// }
-
-updateSection_Usage();
-
-
+// Function to save data to local storage
+function saveDataToLocalStorage() {
+  const jsonString = createJSON();
+  localStorage.setItem('BadMarks_data', jsonString);
+}
+
+// Set up periodic saving every 5 minutes (300000 milliseconds)
+setInterval(saveDataToLocalStorage, 300000);
+
+// Function to load data from local storage
+function loadDataFromLocalStorage() {
+  const jsonString = localStorage.getItem('BadMarks_data');
+  if (jsonString) {
+    loadFromJSON(jsonString);
+  }
+}
+
+// Save data when the panel (or window) is closed
+window.addEventListener('beforeunload', saveDataToLocalStorage);
+
+function updateMarkOfStudentTable(){
+  const studentId = document.getElementById('admin_mos_slct_student').value;
+  const groupId = document.getElementById('admin_mos_slct_group').value;
+
+  if(!studentId || !groupId){
+    alert('Please select a student and a group');
+    return;
+  }
+
+  const student = g_students.find(student => student.id == studentId);
+  const group = g_groups.find(group => group.id == groupId);
+  const student_group = g_students_groups.find(student_group => student_group.student.id == studentId && student_group.group.id == groupId);
+
+  document.getElementById('admin_mos_span_name').textContent = student.name;
+  document.getElementById('admin_mos_span_group').textContent = group.name;
+
+  const table = document.getElementById('admin_markOfStudent_table');
+  const tbody = table.querySelector('tbody');
+  tbody.innerHTML = '';
+
+  if(student_group.marks_assigned.length === 0){
+    tbody.innerHTML = '<tr><td colspan="6">No marks assigned</td></tr>';
+    return;
+  }
+
+  const tbody_fragment = document.createDocumentFragment();
+  student_group.marks_assigned.forEach((mark_assignment, index) => {
+    const tr = document.createElement('tr');
+
+    const td_name = document.createElement('td');
+    td_name.textContent = mark_assignment.mark.name;
+    tr.appendChild(td_name);
+
+    const td_type = document.createElement('td');
+    td_type.textContent = mark_assignment.mark.type.name;
+    tr.appendChild(td_type);
+
+    const td_value = document.createElement('td');
+    td_value.textContent = mark_assignment.mark.value;
+    tr.appendChild(td_value);
+
+    const td_description = document.createElement('td');
+    td_description.textContent = mark_assignment.mark.description;
+    tr.appendChild(td_description);
+
+    const td_datetime = document.createElement('td');
+    td_datetime.textContent = new Date(mark_assignment.datetime).toLocaleString();
+    tr.appendChild(td_datetime);
+
+    const td_delete = document.createElement('td');
+    const btn_delete = document.createElement('button');
+    btn_delete.textContent = 'Delete';
+    btn_delete.classList.add('btn_delete_markOfStudent');
+    btn_delete.setAttribute('data-student-id', studentId);
+    btn_delete.setAttribute('data-group-id', groupId);
+    btn_delete.setAttribute('data-markAssigned-index', index);
+    td_delete.appendChild(btn_delete);
+    tr.appendChild(td_delete);
+
+    tbody_fragment.appendChild(tr);
+  });
+  tbody.appendChild(tbody_fragment);
+}
+
+function deleteMarkOfStudent(event){
+  event.preventDefault();
+
+  const studentId = event.target.getAttribute('data-student-id');
+  const groupId = event.target.getAttribute('data-group-id');
+  const markAssignedIndex = event.target.getAttribute('data-markAssigned-index');
+
+  const student_group = g_students_groups.find(student_group => student_group.student.id == studentId && student_group.group.id == groupId);
+
+  student_group.removeMarkByIndex(markAssignedIndex);
+  updateMarkOfStudentTable();
+}
+
+document.getElementById('admin_markOfStudent_table').addEventListener('click', function(event) {
+  if (event.target.matches('button.btn_delete_markOfStudent')) {
+      deleteMarkOfStudent(event);
+  }
+});
+
+function populateResultGroupOptions(event){
+  const select = event.target;
+  writeObjectListToSelect(select, g_groups, 'name', 'id');
+}
+
+function populateResultStrategyOptions(event){
+  const select = event.target;
+  writeObjectListToSelect(select, g_gradesStrategies, 'name', 'name');
+}
+
+document.getElementById('result_group_select_list').addEventListener('click', function(event) {
+  if (event.target.matches('select.populate-on-click')) {
+      populateResultGroupOptions(event);
+  }
+});
+
+document.getElementById('result_strategy_select_list').addEventListener('click', function(event) {
+  if (event.target.matches('select.populate-on-click')) {
+      populateResultStrategyOptions(event);
+  }
+});
+
+
+function showResult(event){
+  event.preventDefault();
+
+  const groupId = document.getElementById('result_group_select_list').value;
+  const strategyName = document.getElementById('result_strategy_select_list').value || "NoStress";
+
+  if (!groupId ) {
+    alert('Please select a group');
+    return;
+  }
+  const dateFrom = new Date(document.getElementById('result_group_select_date_from').value ||
+    new Date(
+      new Date().getFullYear(),
+      new Date().getMonth() - 1, 
+      new Date().getDate()
+  ));
+  dateFrom.setHours(0, 0, 0, 0);
+
+  const dateTo = new Date(document.getElementById('result_group_select_date_to').value || Date.now());
+  dateTo.setHours(23, 59, 59, 999);
+
+  if (dateFrom > dateTo) {
+    alert('The "From" date must be before the "To" date');
+    return;
+  }
+
+  const group = g_groups.find(group => group.id == groupId);
+  const strategy = g_gradesStrategies.find(gradeStrategy => gradeStrategy.name == strategyName);
+
+  document.getElementById('result_group_name').textContent = group.name;
+  document.getElementById('result_date_from').textContent = dateFrom.toLocaleDateString();
+  document.getElementById('result_date_to').textContent = dateTo.toLocaleDateString();
+
+  const tbody = document.getElementById('result_students_table').querySelector('tbody');
+  tbody.innerHTML = ''; // Clear existing rows
+
+  g_students_groups.filter(student_group => student_group.group.id == groupId).forEach(student_group => {
+    const filteredMarks = student_group.marks_assigned.filter(mark_assignment => {
+        const markDate = new Date(mark_assignment.datetime);
+        return markDate >= dateFrom && markDate <= dateTo;
+    });
+
+    const relativeMarkTypeId = g_mark_types.find(mark_type => mark_type.name === 'relative').id;
+    const relativeMarks = filteredMarks.filter(mark_assignment => mark_assignment.mark.type.id === relativeMarkTypeId);
+
+    const absoluteMarkTypeId = g_mark_types.find(mark_type => mark_type.name === 'absolute').id;
+    const absoluteMarks = filteredMarks.filter(mark_assignment => mark_assignment.mark.type.id === absoluteMarkTypeId);
+
+    const relativeResult = relativeMarks.length > 0 ? relativeMarks.reduce((sum, mark_assignment) => sum + mark_assignment.mark.value, 0) / relativeMarks.length : 0;
+    const absoluteResult = absoluteMarks.reduce((sum, mark_assignment) => sum + mark_assignment.mark.value, 0);
+
+    const overallResult = relativeResult + absoluteResult;
+
+    const degree = calculateGrade(overallResult, strategy);
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+        <td>${student_group.student.name}</td>
+        <td>${relativeResult.toFixed(2)} (${relativeMarks.length} marks)</td>
+        <td>${absoluteResult} (${absoluteMarks.length} marks)</td>
+        <td>${overallResult.toFixed(2)}</td>
+        <td>${degree}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// Function to calculate degree based on overall result
+function calculateGrade(overallResult, strategy) {
+  return strategy.getGrade(overallResult);
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
 
-  // const main = document.getElementById('main');
-
-  // main.appendChild(renderUsageDiv());
-
-
-  // /* If there is only one group, show it */
-  // if (groups.length == 0) {
-  //   selectedGroup = g_groups[0];
-  //   document.body.appendChild(renderGroupDiv());
-  // }
+  loadDataFromLocalStorage();
+  updateSection_Usage();
 
 });
 
 
-
-/* To use with indexedDB */
-
-// // Add a new student
-// addStudent({ id: 'student_1', name: 'John Doe', marks: [] })
-//   .then(() => console.log('Student added'))
-//   .catch(err => console.error(err));
-
-// // Get all students
-// getStudents()
-//   .then(students => console.log(students))
-//   .catch(err => console.error(err));
-
-// // Get a student by ID
-// getStudentById('student_1')
-//   .then(student => console.log(student))
-//   .catch(err => console.error(err));
-
-// // Update a student
-// getStudentById('student_1')
-//   .then(student => {
-//     student.marks.push({ id: 'mark_1', type: 'positive', description: 'Helped a classmate', datetime: new Date().toISOString() });
-//     return updateStudent(student);
-//   })
-//   .then(() => console.log('Student updated'))
-//   .catch(err => console.error(err));
-
-// // Delete a student
-// deleteStudent('student_1')
-//   .then(() => console.log('Student deleted'))
-//   .catch(err => console.error(err));
