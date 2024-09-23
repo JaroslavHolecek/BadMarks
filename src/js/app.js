@@ -10,7 +10,7 @@ class GradeStrategy {
   }
 
   static fromObject(obj) {
-    return new GradeStrategy(obj.thresholds, obj.grades);
+    return new GradeStrategy(obj.name, obj.thresholds, obj.grades);
   }
 
   static fromJSON(json) {
@@ -218,11 +218,11 @@ var g_mark_types = [
   new MarkType(2, 'absolute', 'Pro absolutní změnu hodnoty')
 ];
 var g_marks = [
-  new Mark(1, 'Odpověď', g_mark_types[0], 50, 'Odpověď na otázku'),
-  new Mark(2, 'Otázka/Diskuze', g_mark_types[0], 100, 'Otázka či diskuze k tématu'),
-  new Mark(3, 'Neaktivita', g_mark_types[0], -100, 'Neaktivita'),
-  new Mark(4, 'Prezentace', g_mark_types[1], 10, 'Prezentace navíc'),
-  new Mark(5, 'Telefon', g_mark_types[1], -10, 'Používá ve třídě v hodně telefon k nesouvisející činnosti')
+  new Mark(1, 'Odpověď', g_mark_types[0], 100, 'Odpověď na otázku'),
+  new Mark(2, 'Otázka/Diskuze', g_mark_types[0], 150, 'Otázka či diskuze k tématu'),
+  new Mark(3, 'Neaktivita', g_mark_types[0], -100, 'Neaktivita při výuce'),
+  new Mark(4, 'Prezentace', g_mark_types[1], 5, 'Prezentace navíc'),
+  new Mark(5, 'Telefon', g_mark_types[1], -10, 'Používá ve třídě při výuce telefon k nesouvisející činnosti')
 ];
 var g_students = [
   new Student(1, 'Adam'),
@@ -291,8 +291,16 @@ function hideElementById(elementId){
   return hideElement(document.getElementById(elementId));
 }
 
+document.getElementById('description_btn').addEventListener('click', () => {
+  showElementById('sec_description');
+  hideElementById('sec_admin');
+  hideElementById('sec_usage');
+  hideElementById('sec_result');
+});
+
 document.getElementById('administration_btn').addEventListener('click', () => {
   updateSection_Admin();
+  hideElementById('sec_description');
   showElementById('sec_admin');
   hideElementById('sec_usage');
   hideElementById('sec_result');
@@ -300,6 +308,7 @@ document.getElementById('administration_btn').addEventListener('click', () => {
 
 document.getElementById('usage_btn').addEventListener('click', () => {
   updateSection_Usage();
+  hideElementById('sec_description');
   hideElementById('sec_admin');
   showElementById('sec_usage');
   hideElementById('sec_result');
@@ -307,6 +316,7 @@ document.getElementById('usage_btn').addEventListener('click', () => {
 
 document.getElementById('result_btn').addEventListener('click', () => {
   updateSection_Result();
+  hideElementById('sec_description');
   hideElementById('sec_admin');
   hideElementById('sec_usage');
   showElementById('sec_result');
@@ -489,12 +499,18 @@ function showRevertButton(studentRow, student_group, markIndex) {
   }
   
 
-  revertButton.textContent = `Revert ${mark_name}: ${countdown}`;
+  revertButton.innerHTML = ''; // Clear the button
+  revertButton.appendChild(document.createTextNode(`Revert ${countdown}`));
+  revertButton.appendChild(document.createElement("br"));
+  revertButton.appendChild(document.createTextNode(mark_name));
   // Update the button text every second to show the countdown
   const countdownInterval = setInterval(() => {
     countdown -= 1;
     if (countdown > 0) {
-        revertButton.textContent = `Revert ${mark_name}: ${countdown}`;
+        revertButton.innerHTML = ''; // Clear the button
+        revertButton.appendChild(document.createTextNode(`Revert ${countdown}`));
+        revertButton.appendChild(document.createElement("br"));
+        revertButton.appendChild(document.createTextNode(mark_name));
     } else {
         clearInterval(countdownInterval); // Stop the countdown when it reaches zero
         revertButtonContainer.innerHTML = ''; // Remove the button
@@ -720,10 +736,19 @@ function removeStudentFromGroup(event){
 
   const studentId = event.target.getAttribute('data-student-id');
   const groupId = event.target.getAttribute('data-group-id');
+
+  const student_name = g_students.find(student => student.id == studentId).name;
+  const group_name = g_groups.find(group => group.id == groupId).name;
+
+  const userConfirmed = confirm(`"${student_name}" is going to be removed from "${group_name}". This will remove all students marks within this group. Are you sure you want it? It can't be undone.`);
+  if(!userConfirmed){
+    return;
+  }
   
   const studentGroupIndex = g_students_groups.findIndex(student_group => student_group.student.id == studentId && student_group.group.id == groupId);
   g_students_groups.splice(studentGroupIndex, 1);
   updateSection_Admin_StudentsTable();
+  
 }
 
 function addStudentToGroup(event) {
@@ -789,6 +814,21 @@ function deleteMark(event){
 
   const markId = event.target.getAttribute('data-mark-id');
   const markName = g_marks.find(mark => mark.id == markId).name;
+
+  let markUsage = [];
+
+  g_students_groups.forEach(student_group => {
+    const markIndex = student_group.marks_assigned.findIndex(mark_assigned => mark_assigned.mark.id == markId);
+    if(markIndex >= 0){
+      markUsage.push({student: student_group.student.name, group: student_group.group.name});
+    }
+  });
+
+  if(markUsage.length > 0){
+    let message = `"${markName}" can not be deleted because it is used by:${markUsage.map(usage => `\n${usage.student} in ${usage.group}`).join('')}`;
+    alert(message);
+    return;
+  }
 
   const userConfirmed = confirm(`"${markName}" is going to be deleted. Are you sure you want it? It can't be undone.`);
   if (userConfirmed) {
@@ -1035,9 +1075,9 @@ function updateMarkOfStudentTable(){
     td_value.textContent = mark_assignment.mark.value;
     tr.appendChild(td_value);
 
-    const td_description = document.createElement('td');
-    td_description.textContent = mark_assignment.mark.description;
-    tr.appendChild(td_description);
+    // const td_description = document.createElement('td');
+    // td_description.textContent = mark_assignment.mark.description;
+    // tr.appendChild(td_description);
 
     const td_datetime = document.createElement('td');
     td_datetime.textContent = new Date(mark_assignment.datetime).toLocaleString();
@@ -1158,8 +1198,8 @@ function showResult(event){
     const tr = document.createElement('tr');
     tr.innerHTML = `
         <td>${student_group.student.name}</td>
-        <td>${relativeResult.toFixed(2)} (${relativeMarks.length} marks)</td>
-        <td>${absoluteResult} (${absoluteMarks.length} marks)</td>
+        <td>${relativeResult.toFixed(2)}<br>(${relativeMarks.length} marks)</td>
+        <td>${absoluteResult}<br>(${absoluteMarks.length} marks)</td>
         <td>${overallResult.toFixed(2)}</td>
         <td>${degree}</td>
     `;

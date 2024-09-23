@@ -5,6 +5,7 @@ body {
   padding: 0;
   background-color: #f5f5f5;
   color: #333;
+  width: 100%;
 }
 
 h1, h2, h3 {
@@ -63,10 +64,18 @@ table {
   margin: 1rem 0;
 }
 
+.wide_table {
+  font-size: 90%;
+}
+
 th, td {
-  padding: 0.75rem;
+  padding: 0.3rem;
   text-align: left;
   border-bottom: 1px solid #ddd;
+}
+
+.wide_table th, .wide_table td {
+  padding: 0.2rem;
 }
 
 th {
@@ -110,10 +119,6 @@ tr:hover {
 }
 
 @media (min-width: 600px) {
-  nav {
-      justify-content: flex-start;
-  }
-
   main {
       max-width: 800px;
       margin: 0 auto;

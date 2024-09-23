@@ -13,15 +13,127 @@
             <h1>Student Marking System</h1>
         </header>
         <nav id="nav">
-            <button id="administration_btn">Administration</button>
-            <button id="usage_btn">In class</button>
-            <button id="result_btn">Results</button>
+            <button id="description_btn" class="nav_btn">Description</button>
+            <button id="administration_btn" class="nav_btn">Administration</button>
+            <button id="usage_btn" class="nav_btn">In class</button>
+            <button id="result_btn" class="nav_btn">Results</button>
         </nav>
         <main id="main">
+            <section id="sec_description" style="display: none;">
+                <h2>Description</h2>
+                <p>
+                    This is a simple student marking system. It allows to manage groups, students and marks. 
+                    It also allows to compute grades based on the marks and randomly select student (for answer question for example).
+                    Data are store in browser's local storage and moreover you can save it to file and then load on other device.
+                </p>
+                <p>
+                    The system is divided into three sections: 
+                    <ul>
+                        <li>Administration - to manage groups, students, marks and student's marks</li>
+                        <li>In class - to mark students in class + randomly select student</li>
+                        <li>Results - to compute grades based on the marks for given date interval</li>
+                    </ul>
+                </p>
+                <p>
+                    The system is based on the following entities:
+                    <ul>
+                        <li>Group - a group of students</li>
+                        <li>Student - a student in a group, student can be in more groups</li>
+                        <li>Mark - a mark for a student in group, so student has marks for every group separately<br>
+                        Marks have two possible types - relative and absolute. From relatives one is computed average of its values, absolutes one is simply add (or in fact deducted if has negative value) to result score.<br>
+                        Positive value of mark indicate its positive impact on the result score, negative value indicate its negative impact on the result score.<br>
+                        Grades strategy are hardcoded (for now) and are described below</li>
+                        
+                    </ul>
+                </p>
+                <p>
+                    The system allows to:
+                    <ul>
+                        <li>add, remove and list groups</li>
+                        <li>add, remove and list students in a group</li>
+                        <li>add, remove and list marks for a student in group</li>
+                        <li>mark students in class</li>
+                        <li>randomly select student</li>
+                        <li>compute grades based on the marks and selected strategy</li>
+                    </ul>
+                </p>
+
+                <h3>Grades strategy</h3>
+                <p>
+                    The system allows to compute grades based on the marks for given date interval. 
+                    The grades are computed based on the following strategy:
+                    <ul>
+                        <li>Relative marks are computed as average of its values</li>
+                        <li>Absolute marks are computed as sum of its values</li>
+                        <li>Overall score is computed as sum of relative and absolute score</li>
+                        <li>Grade is computed based on the following table:
+                            <ul>
+                                <li><strong>NoStress</strong><br>":-)" for any score</li>
+                                <li><strong>JH</strong><br>
+                                    *if you want to use this strategy, it make sense to use positive relative marks with values bigger than 100 only
+                                    (otherwise positive mark could decrease the grade).
+                                    <br>Negative marks could have any value and still will have negative impact.
+                                    Absolute marks could have any value and still behave as expected.<br>
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Score</th>
+                                                <th>Grade</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>&geq; 90</td>
+                                                <td>1</td>
+                                            </tr>
+                                            <tr>
+                                                <td>&geq; 80</td>
+                                                <td>1-</td>
+                                            </tr>
+                                            <tr>
+                                                <td>&geq; 70</td>
+                                                <td>2</td>
+                                            </tr>
+                                            <tr>
+                                                <td>&geq; 60</td>
+                                                <td>2-</td>
+                                            </tr>
+                                            <tr>
+                                                <td>&geq; 45</td>
+                                                <td>3</td>
+                                            </tr>
+                                            <tr>
+                                                <td>&geq; 30</td>
+                                                <td>3-</td>
+                                            </tr>
+
+                                            <tr>
+                                                <td>&geq; 15</td>
+                                                <td>4</td>
+                                            </tr>
+
+                                            <tr>
+                                                <td>&geq; 0</td>
+                                                <td>4-</td>
+                                            </tr>
+
+                                            <tr>
+                                                <td>&lt; 0</td>
+                                                <td>5</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+            </section>
+
             <section id="sec_admin" style="display: none;">
                 <section id="sec_save_load">
-                    <button id="save_btn" onclick="saveDataToFile(event)">Save to file</button>
+                    
                     <form id="load_form">
+                        <button id="save_btn" onclick="saveDataToFile(event)">Save to file</button>
                         <label for="load_file">Load from file:</label>
                         <input type="file" id="load_file" accept=".json" required>
                         <button type="button" id="load_btn" onclick="loadDataFromFile(event)">Load</button>
@@ -94,7 +206,7 @@
                         <input type="text" id="mark_description" placeholder="Mark description">
                         <button type="button" onclick="addMark(event)">Add mark</button>
                     </form>
-                    <table id="admin_mark_table">
+                    <table id="admin_mark_table" class="wide_table">
                         <thead>
                             <tr>
                                 <th>Name</th>
@@ -135,7 +247,7 @@
                                 <th>Name</th>
                                 <th>Type</th>
                                 <th>Value</th>
-                                <th>Description</th>
+                                <!-- <th>Description</th> -->
                                 <th>Assignment time</th>
                                 <th>Delete</th>
                             </tr>
